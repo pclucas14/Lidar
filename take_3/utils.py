@@ -78,10 +78,18 @@ def remove_zeros(pc):
     if xx.dim() == 3: 
         xx = xx.unsqueeze(0)
 
+    iters = 0
+    pad = 2
+    ks = 5
     while (xx[:, 0] == 0).sum() > 0 : 
+        if iters  > 100:
+            raise ValueError()
+            ks += 2
+            pad += 1
+        
         mask = (xx[:, 0] == 0).unsqueeze(1).float()
-        out_a = F.max_pool2d(xx[:, 0], 5, padding=2, stride=1)
-        out_b = -F.max_pool2d(-xx[:, 1], (5, 5), padding=(2, 2), stride=1)
+        out_a = F.max_pool2d(xx[:, 0], ks, padding=pad, stride=1)
+        out_b = -F.max_pool2d(-xx[:, 1], ks, padding=pad, stride=1)
         #out_b_ = (xx[:, 1]).min(dim=-1, keepdim=True)[0].expand_as(out_b)
         #out_b = torch.cat([out_b_[:, :10], out_b[:, 10:]], dim=1)
         out_b = out_b.expand_as(out_a)
@@ -89,6 +97,7 @@ def remove_zeros(pc):
         mask = (xx[:, 0] == 0).unsqueeze(1)
         mask = mask.float()
         xx = xx * (1 - mask) + (mask) * out
+        iters += 1
 
     return xx.cpu().data.numpy()
 
@@ -101,7 +110,8 @@ def preprocess(dataset):
     min_a, max_a = -41.1245002746582,   36.833248138427734
     min_b, max_b = -25.833599090576172, 30.474000930786133
     min_c, max_c = -2.3989999294281006, 0.7383332848548889
-    dataset = dataset[::100, 5:45]
+    dataset = dataset[:, 5:45]
+
 
     mask = np.maximum(dataset[:, :, :, 0] < min_a, dataset[:, :, :, 0] > max_a)
     mask = np.maximum(mask, np.maximum(dataset[:, :, :, 1] < min_b, dataset[:, :, :, 1] > max_b))
@@ -116,10 +126,18 @@ def preprocess(dataset):
     dataset = to_polar(dataset).transpose(0, 3, 1, 2)
     previous = (dataset[:, 0] == 0).sum()
 
+    remove = []
     for i in range(dataset.shape[0]):
         print('processing {}/{}'.format(i, dataset.shape[0]))
-        pp = remove_zeros(dataset[i]).squeeze(0)
-        dataset[i] = pp
+        try:
+            pp = remove_zeros(dataset[i]).squeeze(0)
+            dataset[i] = pp
+        except:
+            print('removing %d' % i)
+            remove += [i]
+
+    for i in remove:
+        dataset = np.concatenate([dataset[:i-1], dataset[i+1:]], axis=0)
 
     return dataset[:, :, :, ::2]
 
