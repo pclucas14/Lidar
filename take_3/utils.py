@@ -101,7 +101,7 @@ def preprocess(dataset):
     min_a, max_a = -41.1245002746582,   36.833248138427734
     min_b, max_b = -25.833599090576172, 30.474000930786133
     min_c, max_c = -2.3989999294281006, 0.7383332848548889
-    dataset = dataset[:, 5:45]
+    dataset = dataset[::100, 5:45]
 
     mask = np.maximum(dataset[:, :, :, 0] < min_a, dataset[:, :, :, 0] > max_a)
     mask = np.maximum(mask, np.maximum(dataset[:, :, :, 1] < min_b, dataset[:, :, :, 1] > max_b))
@@ -144,14 +144,39 @@ def show_pc(velo):
     print('showing pc')
     mayavi.mlab.show()
 
-if __name__ == '__main__':
-    import hickle as hkl
+# Utilities for baseline
+def get_chamfer_dist():
     import sys
-    xx = hkl.load('clouds/real%s.hkl' % sys.argv[1])
-    import pdb; pdb.set_trace()
-    out = from_polar_np(np.expand_dims(xx, 0))
-    outp = remove_zeros(xx)
-    outp = from_polar_np(outp)
-    show_pc(out[0])
-    show_pc(outp[0])
-    x = 1
+    sys.path.insert(0, './nndistance')
+    from modules.nnd import NNDModule
+    dist = NNDModule()
+
+    def loss(a, b):
+        if a.dim() == 4:
+            assert a.size(1) == 3
+            a = a.permute(0, 2, 3, 1).contiguous().reshape(a.size(0), -1, 3)
+            
+        if b.dim() == 4:
+            assert b.size(1) == 3
+            b = b.permute(0, 2, 3, 1).contiguous().reshape(b.size(0), -1, 3)
+
+        assert a.dim() == b.dim() == 3
+        if a.size(-1) != 3: 
+            assert a.size(-2) == 3
+            a = a.transpose(-1, -1).contiguous()
+        
+        if b.size(-1) != 3: 
+            assert b.size(-2) == 3
+            b = a.transpose(-1, -1).contiguous()
+
+        dist_a, dist_b = dist(a, b)
+        return dist_a.sum(dim=-1) + dist_b.sum(dim=-1)
+
+    return loss
+
+
+if __name__ == '__main__':
+    x = torch.cuda.FloatTensor(16, 40 * 256, 3).normal_()
+    y = torch.cuda.FloatTensor(16, 40 * 256, 3).normal_()
+    CD = get_chamfer_dist()
+    dist = CD(x,y)
