@@ -21,6 +21,7 @@ parser.add_argument('--use_spectral_norm', type=int, default=0)
 parser.add_argument('--use_round_conv', type=int, default=0)
 parser.add_argument('--base_dir', type=str, default='runs/test')
 parser.add_argument('--dis_iters', type=int, default=1, help='disc iterations per 1 gen iter')
+parser.add_argument('--no_polar', action='store_true')
 parser.add_argument('--optim',  type=str, default='Adam')
 parser.add_argument('--gen_lr', type=float, default=1e-4)
 parser.add_argument('--dis_lr', type=float, default=1e-4)
@@ -35,8 +36,8 @@ torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
 # construct model and ship to GPU
-dis = netD(args, ndf=64, nc=2, lf=(2,16)).cuda()
-gen = netG(args, ngf=64, nc=2, ff=(2,16)).cuda()
+dis = netD(args, ndf=64, nc=3 if args.no_polar else 2, lf=(2,16)).cuda()
+gen = netG(args, ngf=64, nc=3 if args.no_polar else 2, ff=(2,16)).cuda()
 
 # Logging
 maybe_create_dir(os.path.join(args.base_dir, 'samples'))
@@ -47,6 +48,7 @@ writes = 0
 # dataset preprocessing
 dataset = np.load('../../lidar_generation/kitti_data/lidar.npz') 
 dataset = preprocess(dataset).astype('float32')
+dataset = from_polar_np(dataset) if args.no_polar else dataset
 
 loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                     shuffle=True, num_workers=4, drop_last=True)

@@ -31,7 +31,7 @@ def from_polar_np(velo):
     x = np.cos(angles) * dist
     y = np.sin(angles) * dist
     out = np.stack([x,y,z], axis=1)
-    return out
+    return out.astype('float32')
 
 def print_and_log_scalar(writer, name, value, write_no, end_token=''):
     if isinstance(value, list):
