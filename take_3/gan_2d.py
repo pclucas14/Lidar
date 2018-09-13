@@ -6,7 +6,6 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torchvision import datasets, transforms
 from pydoc import locate
-import hickle as hkl
 import tensorboardX
 
 from utils import * 
@@ -21,7 +20,7 @@ parser.add_argument('--use_spectral_norm', type=int, default=0)
 parser.add_argument('--use_round_conv', type=int, default=0)
 parser.add_argument('--base_dir', type=str, default='runs/test')
 parser.add_argument('--dis_iters', type=int, default=1, help='disc iterations per 1 gen iter')
-parser.add_argument('--no_polar', action='store_true')
+parser.add_argument('--no_polar', type=int, default=0)
 parser.add_argument('--optim',  type=str, default='Adam')
 parser.add_argument('--gen_lr', type=float, default=1e-4)
 parser.add_argument('--dis_lr', type=float, default=1e-4)
@@ -77,8 +76,8 @@ for epoch in range(1000):
 
     while iters < len(loader):
         j = 0
-        if iters > 10 : break
-        print(iters)
+        # if iters > 10 : break
+        # print(iters)
     
         """ Update Discriminator Network """
         for p in dis.parameters():
@@ -122,7 +121,8 @@ for epoch in range(1000):
         fake_g += [fake_out.mean().data[0]]        
         
         if args.loss == 0: 
-            input = data_iter.next().cuda() if iters != len(loader) else input
+            iters += 1
+            input = data_iter.next().cuda() if iters < len(loader) else input
             real_out = dis(input)
             gen_loss = (((real_out - fake_out.mean() + 1) ** 2).mean() + \
                         ((fake_out - real_out.mean() - 1) ** 2).mean()) / 2

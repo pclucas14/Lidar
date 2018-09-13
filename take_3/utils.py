@@ -101,7 +101,7 @@ def preprocess(dataset):
     min_a, max_a = -41.1245002746582,   36.833248138427734
     min_b, max_b = -25.833599090576172, 30.474000930786133
     min_c, max_c = -2.3989999294281006, 0.7383332848548889
-    dataset = dataset[::25, 5:45]
+    dataset = dataset[:, 5:45]
 
     mask = np.maximum(dataset[:, :, :, 0] < min_a, dataset[:, :, :, 0] > max_a)
     mask = np.maximum(mask, np.maximum(dataset[:, :, :, 1] < min_b, dataset[:, :, :, 1] > max_b))
