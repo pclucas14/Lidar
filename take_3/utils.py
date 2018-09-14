@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 import os
 
+from models import netD
 # -------------------------------------------------------------------------
 # Handy Utilities
 # -------------------------------------------------------------------------
@@ -161,6 +162,46 @@ def show_pc(velo):
     nodes.mlab_source.dataset.point_data.scalars = color
     print('showing pc')
     mayavi.mlab.show()
+
+def to_attr(args_dict):
+    class AttrDict(dict):
+        def __init__(self, *args, **kwargs):
+            super(AttrDict, self).__init__(*args, **kwargs)
+            self.__dict__ = self
+
+    return AttrDict(args_dict)
+
+
+def load_model_from_file(path, epoch=None, model='dis'):
+    import json
+    with open(os.path.join(path, 'args.json'), 'r') as f: 
+        old_args = json.load(f)
+
+    old_args = to_attr(old_args)
+    if 'gen' in model.lower():
+        raise NotImplementedError()
+    elif 'dis' in model.lower():
+        model_ = netD(old_args)
+    else: 
+        raise ValueError('%s is not a valid model name' % model)
+
+    # load weights
+    if epoch is None: # get last model
+        all_ = os.listdir(os.path.join(path, 'models'))
+        all_ = [x[3:-4] for x in all_ if 'gen' in x and 'opt' not in x]
+        epochs = sorted([int(x) for x in all_])
+        if len(epochs) == 0 : 
+            raise FileNotFoundError('no model files were found in %s' % path)
+        
+        epoch = epochs[-1]
+    
+    model_.load_state_dict(torch.load(os.path.join(path, 'models/%s_%d.pth' % (model, epoch))))
+    print('model successfully loaded')
+
+    return model_, epoch 
+
+
+
 
 # Utilities for baseline
 def get_chamfer_dist():

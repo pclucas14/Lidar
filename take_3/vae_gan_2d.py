@@ -25,6 +25,7 @@ parser.add_argument('--iaf', type=int, default=0)
 parser.add_argument('--autoencoder', type=int, default=0)
 parser.add_argument('--atlas_baseline', type=int, default=0)
 parser.add_argument('--kl_warmup_epochs', type=int, default=150)
+parser.add_argument('--lambda_recon', type=float, default=0.5)
 
 args = parser.parse_args()
 maybe_create_dir(args.base_dir)
@@ -37,6 +38,10 @@ torch.cuda.manual_seed_all(0)
 
 # construct model and ship to GPU
 model = VAE(args).cuda()
+
+# load discriminator for loss computation
+path = '/scratch/lpagec/lidar_generation/gan_classic/Conv0_Selu0_SN0_Loss0_BS128_OPTadamGLR:0.0002_DLR:0.0001XYZ:0'
+dis = load_model_from_file(path, epoch=999)[0].cuda()
 
 # Logging
 maybe_create_dir(os.path.join(args.base_dir, 'samples'))
@@ -65,11 +70,13 @@ model.apply(weights_init)
 optim = optim.Adam(model.parameters(), lr=args.lr) 
 
 # construction reconstruction loss function
-if args.atlas_baseline:
-    loss_fn = get_chamfer_dist()
-else:
-    loss_fn = lambda a, b : (a - b).abs().sum(-1).sum(-1).sum(-1) 
-
+def loss_fn(a, b):
+    int_a = dis(a, return_hidden=True)[1]
+    int_b = dis(b, return_hidden=True)[1]
+    adv_loss = (int_a - int_b).abs().sum(-1).sum(-1).sum(-1) / sum([x for x in int_a.shape[1:]])
+    mse_loss = (a - b).abs().sum(-1).sum(-1).sum(-1) / sum([x for x in a.shape[1:]])
+    return args.lambda_recon * mse_loss + (1 - args.lambda_recon) * adv_loss
+    
 
 
 # VAE training

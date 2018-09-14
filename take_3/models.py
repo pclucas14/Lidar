@@ -105,7 +105,7 @@ class netG(nn.Module):
 
 
 class netD(nn.Module):
-    def __init__(self, args, ndf=64, nc=3, nz=1, lf=(2,16)):
+    def __init__(self, args, ndf=64, nc=2, nz=1, lf=(2,16)):
         super(netD, self).__init__()
         self.encoder = True if nz > 1 else False
         
