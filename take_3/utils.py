@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 import os
 
-from models import netD
+from models import netD, netG, VAE
 # -------------------------------------------------------------------------
 # Handy Utilities
 # -------------------------------------------------------------------------
@@ -172,35 +172,29 @@ def to_attr(args_dict):
     return AttrDict(args_dict)
 
 
-def load_model_from_file(path, epoch=None, model='dis'):
+def load_model_from_file(path, epoch, model='dis'):
     import json
     with open(os.path.join(path, 'args.json'), 'r') as f: 
         old_args = json.load(f)
 
     old_args = to_attr(old_args)
     if 'gen' in model.lower():
-        raise NotImplementedError()
+        try:
+            z_ = old_args.z_dim
+            model_ = VAE(old_args)
+        except:
+            z_ = 100
+            model_ = netG(old_args, nz=z_, nc= 3 if old_args.no_polar else 2)
     elif 'dis' in model.lower():
         model_ = netD(old_args)
     else: 
         raise ValueError('%s is not a valid model name' % model)
 
-    # load weights
-    if epoch is None: # get last model
-        all_ = os.listdir(os.path.join(path, 'models'))
-        all_ = [x[3:-4] for x in all_ if 'gen' in x and 'opt' not in x]
-        epochs = sorted([int(x) for x in all_])
-        if len(epochs) == 0 : 
-            raise FileNotFoundError('no model files were found in %s' % path)
-        
-        epoch = epochs[-1]
     
     model_.load_state_dict(torch.load(os.path.join(path, 'models/%s_%d.pth' % (model, epoch))))
     print('model successfully loaded')
 
     return model_, epoch 
-
-
 
 
 # Utilities for baseline

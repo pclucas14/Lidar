@@ -56,6 +56,7 @@ class round_deconv2d(nn.ConvTranspose2d):
 class netG(nn.Module):
     def __init__(self, args, nz=100, ngf=64, nc=3, base=4, ff=(2,16)):
         super(netG, self).__init__()
+        self.args = args
         conv = round_deconv2d if args.use_round_conv else nn.ConvTranspose2d
         sn   = spectral_norm if args.use_spectral_norm else lambda x : x
 
@@ -189,7 +190,10 @@ class VAE(nn.Module):
             mu, logvar = torch.chunk(z, 2, dim=1)
             std = torch.exp(0.5 * logvar)
             eps = torch.randn_like(std)
-            z = eps.mul(std).add_(mu)
+            if not self.training: 
+                z = eps.mul(std).add_(mu)
+            else: 
+                z = mu
 
             if self.args.iaf:
                 z_gaussian = z
